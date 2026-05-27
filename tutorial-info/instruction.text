@@ -1,0 +1,58 @@
+Project setup (Python evn, requirements, .env, first run)
+
+step 1: create project folder
+
+mkdir folder-name
+cd folder-name
+
+
+step2- install uv
+
+pip install uv
+#or 
+pip3 install uv
+
+uv --version
+
+
+step3 create virtual environment
+
+uv venv
+
+step 4 install all pacage
+streamlit==1.54.0
+streamlit-webrtc==0.64.5
+mediapipe==0.10.14
+opencv-python-headless==4.10.0.84
+pandas==2.2.3
+groq>=0.12.0
+gtts==2.5.3
+python-dotenv==1.2.2
+
+
+step 5 steup  .env file
+
+step 6 create basic folder structure
+
+mkdir core ,detectors, services, static ,ml_models
+mkdir services/auth, services/coaching ,services/config ,services/persistence, services/state ,services/tracking ,services/ui ,services/vision
+
+ 
+type nul > core\__init__.py
+type nul > detectors\__init__.py
+type nul > services\__init__.py
+type nul > ml_models\__init__.py
+type null > services\vision\__init__.py
+
+step 7 : add main.py file
+
+import streamlit as st
+st.set_page_config(page_title="AI GYM TRAINER")
+st.title("🏋️ AI Real-time GYM TRAINER")
+st.write("Setup successfull")
+
+step 8 : first run 
+
+streamlit run main.py
+
+
