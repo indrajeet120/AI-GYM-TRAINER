@@ -4,15 +4,16 @@
 
 .stApp {
   background-color: #0A0D14;
-  color: #fff;
+  color: #ffffff;
 }
 
+/* Sidebar (SAFE override only) */
 [data-testid="stSidebar"] {
-  background-color: #111520;
+  background-color: #111520 !important;
 }
 
 /* =========================================================
-   TYPOGRAPHY (SCOPED – safer)
+   TYPOGRAPHY
 ========================================================= */
 
 .block-container,
@@ -33,29 +34,27 @@
    BUTTONS
 ========================================================= */
 
-button,
 .stButton button,
-.stDownloadButton button,
-.MuiBox-root button {
+.stDownloadButton button {
   background-color: #181D2A !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 0 !important;
   font-family: 'AdobeClean', sans-serif !important;
+  color: #ffffff !important;
 }
 
 /* =========================================================
-   INPUTS & TEXT ELEMENTS
+   INPUTS (SAFE ONLY)
 ========================================================= */
 
 input,
-textarea,
-p,
-li,
-code,
-[data-testid="stSelectbox"] > div > div,
-[data-baseweb="select"] > div,
-[data-baseweb="popover"] ul,
-[data-baseweb="menu"] {
+textarea {
+  border-radius: 0 !important;
+  font-family: 'AdobeClean', sans-serif !important;
+}
+
+/* Selectbox (SAFE STREAMLIT SELECT ONLY) */
+[data-testid="stSelectbox"] {
   border-radius: 0 !important;
   font-family: 'AdobeClean', sans-serif !important;
 }
@@ -71,12 +70,6 @@ code,
   border-radius: 0;
 }
 
-[data-testid="stMetric"] div {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 [data-testid="stMetricValue"] {
   font-size: 1.5rem !important;
   font-weight: 400 !important;
@@ -87,90 +80,25 @@ code,
   opacity: 0.6;
 }
 
-[data-testid="stMetric"] div label p {
-  font-size: 16px !important;
-}
-
 /* =========================================================
-   CONTAINERS / CARDS
+   CARDS / CONTAINERS (SAFE ONLY)
 ========================================================= */
 
-.stContainer,
 .stExpander,
-.stTabs,
-.stColumns,
-.stPopover,
-.stAlertContainer,
-.stStatusContainer,
-.stMetric,
-.stTable,
-.stDataFrame,
-.stForm,
-.stSelectbox,
-[data-baseweb="select"] > div,
-[data-testid="stForm"],
-[data-testid="stMetric"],
-[data-testid="stNumberInputContainer"],
-[data-testid="stDataFrameColumnMenu"],
-[data-testid="stHeadingWithActionElements"],
-[data-testid="stCaptionContainer"] p,
-[data-testid="stAlertContentInfo"] p,
-[data-testid="stSidebarNavLink"],
-[data-testid="stMarkdownContainer"] h3,
-[data-baseweb="popover"],
-[data-baseweb="menu"],
-div[role="menu"],
-div[role="menuitem"] {
+.stForm {
   border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
 }
 
 /* =========================================================
-   DATAFRAME FIX
+   DATAFRAME
 ========================================================= */
 
-.stDataFrame,
-.stDataFrame div,
-.stDataFrameGlideDataEditor {
+.stDataFrame {
   border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
 }
 
 /* =========================================================
-   INTERACTIVE ELEMENTS
-========================================================= */
-
-.stTextInput,
-.stTextArea,
-.stNumberInput,
-.stSlider,
-.stMultiselect,
-.stRadio,
-.stCheckbox,
-.stToggle,
-.stFileUploader,
-.stColorPicker,
-.stDateInput,
-.stTimeInput,
-.stCameraInput,
-[data-testid="stTextInput"] > div,
-[data-testid="stButton"] button,
-[data-testid="stBaseButton-secondaryFormSubmit"],
-[data-testid="stStatusWidget"] {
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
-}
-
-/* =========================================================
-   MARKDOWN
-========================================================= */
-
-[data-testid="stMarkdownContainer"] strong {
-  font-family: 'AdobeClean', sans-serif !important;
-}
-
-/* =========================================================
-   FORM
+   FORM CONTAINER
 ========================================================= */
 
 .stForm {
