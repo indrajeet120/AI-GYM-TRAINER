@@ -32,7 +32,6 @@ def inject_local_font(font_path, font_name):
         </style>
     """, unsafe_allow_html=True)
 
-
 def inject_webrtc_styles():
     font_path = os.path.join(os.getcwd(), "static", "AdobeClean.otf")
     
@@ -95,4 +94,3 @@ def inject_webrtc_styles():
         """,
         height=0,
     )
-

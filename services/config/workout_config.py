@@ -1,10 +1,11 @@
-EXERCISE_OPTIONS=[
+EEXERCISE_OPTIONS=[
     "Squats",
     "Push-ups",
     "Biceps Curls (Dumbbell)",
     "Shoulder Press",
     "Lunges"
 ]
+
 
 POSE_CONNECTIONS = [
     (11, 12), (11, 13), (13, 15), (12, 14), (14, 16),       # Shoulders & Arms
@@ -40,6 +41,7 @@ METRICS_FIELDS = {
         "balance_status": "N/A",
     },
 }
+
 
 PROMPT = (
     "You are Apna AI Coach, a professional AI gym trainer monitoring a user's workout via live camera.\n\n"

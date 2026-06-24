@@ -4,16 +4,15 @@
 
 .stApp {
   background-color: #0A0D14;
-  color: #ffffff;
+  color: #fff;
 }
 
-/* Sidebar (SAFE override only) */
 [data-testid="stSidebar"] {
-  background-color: #111520 !important;
+  background-color: #111520;
 }
 
 /* =========================================================
-   TYPOGRAPHY
+   TYPOGRAPHY (SCOPED – safer)
 ========================================================= */
 
 .block-container,
@@ -34,27 +33,29 @@
    BUTTONS
 ========================================================= */
 
+button,
 .stButton button,
-.stDownloadButton button {
+.stDownloadButton button,
+.MuiBox-root button {
   background-color: #181D2A !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 0 !important;
   font-family: 'AdobeClean', sans-serif !important;
-  color: #ffffff !important;
 }
 
 /* =========================================================
-   INPUTS (SAFE ONLY)
+   INPUTS & TEXT ELEMENTS
 ========================================================= */
 
 input,
-textarea {
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
-}
-
-/* Selectbox (SAFE STREAMLIT SELECT ONLY) */
-[data-testid="stSelectbox"] {
+textarea,
+p,
+li,
+code,
+[data-testid="stSelectbox"] > div > div,
+[data-baseweb="select"] > div,
+[data-baseweb="popover"] ul,
+[data-baseweb="menu"] {
   border-radius: 0 !important;
   font-family: 'AdobeClean', sans-serif !important;
 }
@@ -70,6 +71,12 @@ textarea {
   border-radius: 0;
 }
 
+[data-testid="stMetric"] div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 [data-testid="stMetricValue"] {
   font-size: 1.5rem !important;
   font-weight: 400 !important;
@@ -80,25 +87,90 @@ textarea {
   opacity: 0.6;
 }
 
+[data-testid="stMetric"] div label p {
+  font-size: 16px !important;
+}
+
 /* =========================================================
-   CARDS / CONTAINERS (SAFE ONLY)
+   CONTAINERS / CARDS
 ========================================================= */
 
+.stContainer,
 .stExpander,
-.stForm {
+.stTabs,
+.stColumns,
+.stPopover,
+.stAlertContainer,
+.stStatusContainer,
+.stMetric,
+.stTable,
+.stDataFrame,
+.stForm,
+.stSelectbox,
+[data-baseweb="select"] > div,
+[data-testid="stForm"],
+[data-testid="stMetric"],
+[data-testid="stNumberInputContainer"],
+[data-testid="stDataFrameColumnMenu"],
+[data-testid="stHeadingWithActionElements"],
+[data-testid="stCaptionContainer"] p,
+[data-testid="stAlertContentInfo"] p,
+[data-testid="stSidebarNavLink"],
+[data-testid="stMarkdownContainer"] h3,
+[data-baseweb="popover"],
+[data-baseweb="menu"],
+div[role="menu"],
+div[role="menuitem"] {
   border-radius: 0 !important;
+  font-family: 'AdobeClean', sans-serif !important;
 }
 
 /* =========================================================
-   DATAFRAME
+   DATAFRAME FIX
 ========================================================= */
 
-.stDataFrame {
+.stDataFrame,
+.stDataFrame div,
+.stDataFrameGlideDataEditor {
   border-radius: 0 !important;
+  font-family: 'AdobeClean', sans-serif !important;
 }
 
 /* =========================================================
-   FORM CONTAINER
+   INTERACTIVE ELEMENTS
+========================================================= */
+
+.stTextInput,
+.stTextArea,
+.stNumberInput,
+.stSlider,
+.stMultiselect,
+.stRadio,
+.stCheckbox,
+.stToggle,
+.stFileUploader,
+.stColorPicker,
+.stDateInput,
+.stTimeInput,
+.stCameraInput,
+[data-testid="stTextInput"] > div,
+[data-testid="stButton"] button,
+[data-testid="stBaseButton-secondaryFormSubmit"],
+[data-testid="stStatusWidget"] {
+  border-radius: 0 !important;
+  font-family: 'AdobeClean', sans-serif !important;
+}
+
+/* =========================================================
+   MARKDOWN
+========================================================= */
+
+[data-testid="stMarkdownContainer"] strong {
+  font-family: 'AdobeClean', sans-serif !important;
+}
+
+/* =========================================================
+   FORM
 ========================================================= */
 
 .stForm {
