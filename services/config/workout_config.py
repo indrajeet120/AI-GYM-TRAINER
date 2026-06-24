@@ -1,4 +1,4 @@
-EEXERCISE_OPTIONS=[
+EXERCISE_OPTIONS=[
     "Squats",
     "Push-ups",
     "Biceps Curls (Dumbbell)",
