@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import time
+import pandas as pd
 from services.auth.login_wall import render_login_wall
 from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS
@@ -7,8 +9,8 @@ from services.ui.style_loader import load_css, inject_local_font , inject_webrtc
 from services.persistence.exercise_repository import init_db
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
-
-
+from services.tracking.metrics import sync_metrics_update
+from services.persistence.exercise_repository import get_users_exercises
 
 def main():
     st.set_page_config(
@@ -44,18 +46,37 @@ def main():
         st.subheader("Workout Plan")
 
         if not workout_started:
-            st.selectbox("Exercise", options= EXERCISE_OPTIONS, key="exercise_type" , index=0)
+            plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
 
-            st.number_input("Sets", min_value=0, max_value=50, key="target_sets", step=1 )
+            plan_sets = st.number_input("Sets", min_value=0, max_value=50, key="plan_sets", step=1)
 
-            st.number_input("Reps per Set", min_value=0, max_value=50, key="reps_per_set", step=1)
+            plan_reps = st.number_input("Reps per Set", min_value=0, max_value=50, key="plan_reps", step=1)
 
             st.markdown("")
 
             start_session_button = st.button("Start Workout", width="stretch", key="start_session_button")
 
             if start_session_button:
-                st.session_state["workout_started"] = True
+                st.session_state.exercise_type = plan_exercise
+                st.session_state.target_sets = int(plan_sets)
+                st.session_state.reps_per_set = int(plan_reps)
+                st.session_state.reps = 0
+                st.session_state.workout_started = True
+                st.session_state.set_cycle_started_at = time.time()
+                st.session_state.last_saved_sets_completed = 0
+
+                if st.session_state.voice_pipeline:
+                    result = st.session_state.voice_pipeline.process_event(
+                        event="workout_started",
+                        exercise=plan_exercise,
+                        metrics={}
+                    )
+                    
+                    if result:
+                        st.session_state.audio_to_play, st.session_state.coach_feedback = result
+
+                st.session_state.last_notified_sets_completed = 0
+                st.session_state.last_notified_workout_complete = False
                 st.rerun()
 
         else:
@@ -158,10 +179,49 @@ def main():
             },
             async_processing=True
         )
+
+        sync_metrics_update(context)
+
+        if context.state.playing:
+            time.sleep(0.25)
+            st.rerun()
     
+        inject_webrtc_styles()
+
+    st.divider()
+
     st.markdown("#### Workout History")
 
-    inject_webrtc_styles()
+    user_id =st.session_state.get("user_id", 0)
+
+    if isinstance(user_id, int):
+        history_rows = get_users_exercises(user_id)
+
+        arr = [
+             {
+                "Exercise": row['exercise_name'],
+                "Reps": row['reps'],
+                "Sets": row['sets'],
+                "Time (sec)": row['time'],
+                "Date": row['created_at']
+            }
+            for row in history_rows
+        ]
+
+        df = pd.DataFrame(arr)
+
+        if not df.empty:
+            df["Date"] = pd.to_datetime(df["Date"]).dt.date
+            agg_df = df.groupby(["Exercise", "Date"]).agg({
+                "Reps": 'sum',
+                "Sets": "sum",
+                "Time (sec)": "sum"
+            }).reset_index()
+            agg_df.index += 1
+            st.table(agg_df, border="horizontal")
+        else:
+            st.info("No workout history found.")
+    
 
 
 if __name__ == "__main__":
