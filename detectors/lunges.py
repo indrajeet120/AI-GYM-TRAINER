@@ -4,7 +4,7 @@ from core.base_exercise import BaseExercise
 class LungesDetector(BaseExercise):
     DOWN_THRESHOLD = 100
     UP_THRESHOLD = 160
-    MIN_VISIBILITY = 0.7
+    MIN_VISIBILITY = 0.4
     BALANCE_TOLERANCE = 0.10
 
     LEFT_HIP = 23
@@ -35,6 +35,12 @@ class LungesDetector(BaseExercise):
             self.get_point(landmarks, self.RIGHT_KNEE),
             self.get_point(landmarks, self.RIGHT_ANKLE),
         )
+
+        if left_knee_angle is None or right_knee_angle is None:
+         return {
+          "reps":self.reps,
+          "pose_detected":True
+        }
 
         if left_knee_angle <= right_knee_angle:
             front_knee_angle = left_knee_angle
@@ -73,7 +79,7 @@ class LungesDetector(BaseExercise):
             balance_status = "BALANCED"
         else:
             balance_status = "OFF BALANCE"
-
+        
         return {
             "reps": self.reps,
             "front_knee_angle": int(front_knee_angle),

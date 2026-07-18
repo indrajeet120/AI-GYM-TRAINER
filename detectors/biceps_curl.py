@@ -5,7 +5,7 @@ from core.base_exercise import BaseExercise
 class BicepsCurlDetector(BaseExercise):
     UP_THRESHOLD = 50
     DOWN_THRESHOLD = 160
-    MIN_VISIBILITY = 0.7
+    MIN_VISIBILITY = 0.4
     ELBOW_DRIFT_TOLERANCE = 0.06
     SWING_THRESHOLD = 15
 
@@ -28,8 +28,13 @@ class BicepsCurlDetector(BaseExercise):
         self._shoulder_x_baseline = None
 
     def process(self, landmarks) -> dict:
-        left_vis = landmarks[self.LEFT_ELBOW].visibility
-        right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        # left_vis = landmarks[self.LEFT_ELBOW].visibility
+        # right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        try:
+           left_vis = landmarks[self.LEFT_ELBOW].visibility
+           right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        except:
+         return None
 
         if left_vis >= right_vis:
             shoulder_idx = self.LEFT_SHOULDER
@@ -80,7 +85,13 @@ class BicepsCurlDetector(BaseExercise):
             swing_status = "NO SWING"
         else:
             swing_status = "SWINGING"
-
+        
+        if elbow_angle is None:
+              return {
+              "reps": self.reps,
+              "pose_detected": True
+             }
+    
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),

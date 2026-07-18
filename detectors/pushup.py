@@ -4,7 +4,7 @@ from core.base_exercise import BaseExercise
 class PushUpDetector(BaseExercise):
     DOWN_THRESHOLD = 90
     UP_THRESHOLD = 160
-    MIN_VISIBILITY = 0.7
+    MIN_VISIBILITY = 0.4
     HIP_SAG_TOLERANCE = 0.08
 
     LEFT_SHOULDER = 11
@@ -26,8 +26,13 @@ class PushUpDetector(BaseExercise):
         self.stage = None
 
     def process(self, landmarks) -> dict:
-        left_vis = landmarks[self.LEFT_ELBOW].visibility
-        right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        # left_vis = landmarks[self.LEFT_ELBOW].visibility
+        # right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        try:
+          left_vis = landmarks[self.LEFT_ELBOW].visibility
+          right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        except:
+         return None
 
         if left_vis >= right_vis:
             shoulder_idx = self.LEFT_SHOULDER
@@ -84,7 +89,12 @@ class PushUpDetector(BaseExercise):
             hip_status = "SAGGING"
         else:
             hip_status = "PIKED UP"
-
+        
+        if elbow_angle is None:
+              return {
+              "reps": self.reps,
+              "pose_detected": True
+             }
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),

@@ -1,39 +1,108 @@
 import math
 from abc import ABC ,abstractmethod
 
+# class BaseExercise(ABC):
+#     def __init__(self):
+#         self.reps =0
+#         self.stage = None
+
+#     def calculate_angle(self, a, b, c):
+#      if a is None or b is None or c is None:
+#         return None
+
+#      try:
+#         ax, ay = a
+#         bx, by = b
+#         cx, cy = c
+
+#         angle = math.degrees(
+#             math.atan2(cy - by, cx - bx) -
+#             math.atan2(ay - by, ax - bx)
+#         )
+
+#         angle = abs(angle)
+
+#         if angle > 180:
+#             angle = 360 - angle
+
+#         return angle
+
+#      except Exception:
+#         return None
+#     # def get_point(self, landmarks, idx):
+#     #     p = landmarks[idx]
+          
+#     def get_point(self, landmarks, idx):
+#      if landmarks is None:
+#         return None
+
+#      if idx >= len(landmarks):
+#         return None
+
+#      lm = landmarks[idx]
+
+#      if lm is None:
+#         return None
+
+#      return (lm.x, lm.y)
+
+#     @abstractmethod
+#     def process(self, landmarks):
+#         pass
+
+#     @abstractmethod
+#     def reset(self):
+#         pass
+
+
+import math
+from abc import ABC
+
 class BaseExercise(ABC):
+
     def __init__(self):
-        self.reps =0
+        self.reps = 0
         self.stage = None
 
-    def calculate_angle(self, a,b,c):
-        ax, ay = a[0]-b[0], a[1]-b[1]
-        cx,cy = c[0]-b[0],c[1]-b[1]
+    def calculate_angle(self, a, b, c):
+        if a is None or b is None or c is None:
+            return None
 
-        dot = ax*cx + ay*cy
+        try:
+            ax, ay = a
+            bx, by = b
+            cx, cy = c
 
-        mag_a = math.sqrt(ax **2 +ay **2)
+            radians = (
+                math.atan2(cy - by, cx - bx)
+                -
+                math.atan2(ay - by, ax - bx)
+            )
 
-        mag_c = math.sqrt(cx**2 +cy**2)
+            angle = abs(math.degrees(radians))
 
-        if mag_a *mag_c ==0:
-            return 0.0
-        
+            if angle > 180:
+                angle = 360 - angle
 
-        cos_angle = max(-1.0 , min(1.0, dot/(mag_a*mag_c)))
+            return angle
 
-        return math.degrees(math.acos(cos_angle))
+        except Exception as e:
+            print("ANGLE ERROR:", e)
+            return None
 
-    def get_point(self, landmarks, idx):
-        p = landmarks[idx]
-          
+    # ===== THIS METHOD IS REQUIRED =====
+    def get_point(self, landmarks, index):
+        try:
+            if landmarks is None:
+                return None
 
-    @abstractmethod
-    def process(self, landmarks):
-        pass
+            lm = landmarks[index]
 
-    @abstractmethod
-    def reset(self):
-        pass
+            return (
+                float(lm.x),
+                float(lm.y)
+            )
 
-
+        except Exception as e:
+            print("POINT ERROR:", e)
+            return None
