@@ -13,8 +13,11 @@ venv/
 .DS_Store
 Thumbs.db
 
+
 # Database
+data.db
 Main App/data.db
+*.db
 
 # Logs
 *.log
