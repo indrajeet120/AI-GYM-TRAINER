@@ -47,6 +47,9 @@ def main():
 
     initial_session_defaults()
 
+    if "audio_to_play" not in st.session_state:
+     st.session_state.audio_to_play = None
+
     if "last_spoken_rep" not in st.session_state:
         st.session_state.last_spoken_rep = 0
 
@@ -188,14 +191,32 @@ def main():
                         metric_context["sets_completed"] = st.session_state.get("sets_completed", 0)
 
                         #"Yahan audio directly play hoga, aur UI rendering par koi extra load nahi padega, jisse application smooth chalegi."
-                        st.session_state.voice_pipeline.process_event(
-                            event= "rep_completed",#"ongoing_form_check",
-                            exercise=st.session_state.get("exercise_type"),
-                            metrics=metric_context
-                        )
+                        # st.session_state.voice_pipeline.process_event(
+                        #     event= "rep_completed",#"ongoing_form_check",
+                        #     exercise=st.session_state.get("exercise_type"),
+                        #     metrics=metric_context
+                        # )
+                        audio = st.session_state.voice_pipeline.process_event(
+                          event="rep_completed",
+                          exercise=st.session_state.get("exercise_type"),
+                          metrics=metric_context
+                         )
+
+                        if audio:
+                          st.session_state.audio_to_play = audio
+
                         st.session_state.last_spoken_rep = processor_reps
 
         # "Auto-refresh ko 2 seconds ke interval par set kiya gaya hai, jisse UI consistently refresh hogi aur performance stable rahegi."
+        if st.session_state.audio_to_play:
+
+           st.audio(
+              st.session_state.audio_to_play,
+              format="audio/mp3",
+              autoplay=True
+        )
+        st.session_state.audio_to_play = None
+
         st_autorefresh(interval=2000, key="gym_counter_refresh")
 
     inject_webrtc_styles()

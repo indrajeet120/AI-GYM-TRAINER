@@ -71,12 +71,19 @@ class ShoulderPressDetector(BaseExercise):
             elbow_angle = 0
 
         # ---------- REP COUNT ----------
-        if elbow_angle >= self.UP_THRESHOLD:
-            self.stage = "up"
+        # if elbow_angle >= self.UP_THRESHOLD:
+        #     self.stage = "up"
 
-        if elbow_angle <= self.DOWN_THRESHOLD and self.stage == "up":
-            self.stage = "down"
-            self.reps += 1
+        # if elbow_angle <= self.DOWN_THRESHOLD and self.stage == "up":
+        #     self.stage = "down"
+        #     self.reps += 1
+        # Rep counting
+        if elbow_angle <= self.DOWN_THRESHOLD:
+          self.stage = "down"
+
+        elif elbow_angle >= self.UP_THRESHOLD and self.stage == "down":
+         self.stage = "up"
+         self.reps += 1
 
       # ---------- EXTENSION STATUS (FIXED) ----------
         if elbow_angle >= 162:

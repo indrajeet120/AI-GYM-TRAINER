@@ -2,29 +2,29 @@
 
 import time
 import os
-import threading
-import io
+# import threading
+# import io
 
-try:
-    os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
-    import pygame
-    pygame.mixer.init()
-except Exception as e:
-    print("Pygame mixer initialization failed:", e)
+# try:
+#     os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+#     import pygame
+#     pygame.mixer.init()
+# except Exception as e:
+#     print("Pygame mixer initialization failed:", e)
 
 
-def play_audio_native(audio_bytes):
-    def play():
-        try:
-            fp = io.BytesIO(audio_bytes)
-            pygame.mixer.music.load(fp)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                time.sleep(0.1)
-        except Exception as e:
-            print("NATIVE AUDIO PLAY ERROR:", e)
+# def play_audio_native(audio_bytes):
+#     def play():
+#         try:
+#             fp = io.BytesIO(audio_bytes)
+#             pygame.mixer.music.load(fp)
+#             pygame.mixer.music.play()
+#             while pygame.mixer.music.get_busy():
+#                 time.sleep(0.1)
+#         except Exception as e:
+#             print("NATIVE AUDIO PLAY ERROR:", e)
 
-    threading.Thread(target=play, daemon=True).start()
+#     threading.Thread(target=play, daemon=True).start()
 
 
 class VoicePipeline:
@@ -57,13 +57,15 @@ class VoicePipeline:
                 text = "Drive the weight overhead."
                 self.last_status = "PRESSING"
 
-            elif extension == "FULL EXTENSION" and self.last_status != "FULL EXTENSION":
-                text = f"Excellent lockout. Rep {current_rep}."
-                self.last_status = "FULL EXTENSION"
-
-            elif extension == "START POSITION" and self.last_status != "START POSITION":
-                text = "Control the weight on the way down."
-                self.last_status = "START POSITION"
+            # elif extension == "FULL EXTENSION" and self.last_status != "FULL EXTENSION":
+            #     text = f"Excellent lockout. Rep {current_rep}."
+            #     self.last_status = "FULL EXTENSION"
+            elif event == "rep_completed":
+              text = f"Excellent lockout. Rep {current_rep}."
+              self.last_status = "FULL EXTENSION"
+            # elif extension == "START POSITION" and self.last_status != "START POSITION":
+            #     text = "Control the weight on the way down."
+            #     self.last_status = "START POSITION"
 
         # ---------------- SQUATS ----------------
         elif exercise == "Squats":
@@ -152,18 +154,29 @@ class VoicePipeline:
             return None
 
         # Smooth cooldown
-        if now - self.last_spoken_at < 0.6:
+        if now - self.last_spoken_at < 1.0:
             return None
 
         print("COACH LIVE TRACKING TEXT:", text)
 
+        # try:
+        #     voice = self.tts.speak(text)
+        #     if voice:
+        #         play_audio_native(voice)
+        #         self.last_spoken_at = now
+        #         return voice, text
+        # except Exception as e:
+        #     print("TTS Native execution error:", e)
+
+        # return None
         try:
-            voice = self.tts.speak(text)
-            if voice:
-                play_audio_native(voice)
-                self.last_spoken_at = now
-                return voice, text
+          voice = self.tts.speak(text)
+
+          if voice:
+            self.last_spoken_at = now
+            return voice
+
         except Exception as e:
-            print("TTS Native execution error:", e)
+          print("TTS execution error:", e)
 
         return None
