@@ -25,3 +25,5 @@ av==14.0.1
 protobuf==4.25.3
 
 streamlit-autorefresh==1.0.1
+
+# OpenCV Streamlit Cloud rebuild fix
