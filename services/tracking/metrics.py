@@ -83,7 +83,7 @@ def sync_metrics_update(context):
             )
 
             if result:
-                st.session_state.audio_to_play, st.session_state.coach_feedback = result
+                st.session_state.audio_to_play  = result #, st.session_state.coach_feedback = result
                 st.rerun()  # 🔥"Set complete hote hi immediate voice feedback play karne ke liye."
 
         st.session_state.set_cycle_started_at = now_ts
@@ -101,7 +101,7 @@ def sync_metrics_update(context):
             )
 
             if result:
-                st.session_state.audio_to_play, st.session_state.coach_feedback = result
+                st.session_state.audio_to_play  = result #, st.session_state.coach_feedback = result
                 st.rerun()  # 🔥"Workout complete hote hi immediate voice feedback trigger karne ke liye rerun mechanism."
                 
     # ---------------- NO POSE DETECTED EVENT ----------------
@@ -119,6 +119,6 @@ def sync_metrics_update(context):
             )
         
             if result:
-                st.session_state.audio_to_play, st.session_state.coach_feedback = result
+                st.session_state.audio_to_play  = result #, st.session_state.coach_feedback = result
                 st.session_state.last_pose_alert_time = time.time()
                 st.rerun()
