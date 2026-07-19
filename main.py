@@ -364,6 +364,14 @@
 
 
 # --------------------------------------------------
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*GetPrototype.*"
+)
+
 import streamlit as st
 import os
 import time
