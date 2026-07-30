@@ -9,7 +9,6 @@ from services.auth.login_wall import render_login_wall
 from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS, EXPERIENCE_LEVELS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
-from services.ui.audio_player import render_persistent_audio_player
 from services.coaching.audio_manager import AudioManager
 from services.persistence.exercise_repository import init_db, get_users_exercises
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
@@ -158,13 +157,13 @@ def main():
         if context.video_processor:
             sync_metrics_update(context)
 
-        # Render persistent background audio player for browser fallback
-        audio_item = audio_mgr.get_current_audio_to_play()
-        if audio_item:
-            audio_bytes, audio_id, _ = audio_item
-            render_persistent_audio_player(audio_bytes, audio_id)
+        # Streamlit Native Browser Audio Output for Streamlit Cloud & Web Browsers
+        active_audio = audio_mgr.get_active_audio()
+        if active_audio:
+            audio_bytes, audio_id = active_audio
+            st.audio(audio_bytes, format="audio/mp3", autoplay=True)
 
-        # Smooth 1.0s UI refresh cycle during active workout
+        # Smooth 1.0s UI refresh cycle during active workout to sync metrics & audio
         st_autorefresh(interval=1000, key="gym_counter_refresh")
 
     inject_webrtc_styles()

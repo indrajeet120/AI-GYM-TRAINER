@@ -10,17 +10,15 @@ try:
     PYGAME_AVAILABLE = True
 except Exception as e:
     PYGAME_AVAILABLE = False
-    print("Pygame mixer not available, falling back to browser audio:", e)
+    print("Pygame mixer not available, using browser audio:", e)
 
 
 class AudioManager:
     """
     Thread-safe Singleton Audio & Voice Queue Manager.
     Dual-mode playback:
-    1. Plays directly through system speakers via Pygame for zero-latency local audio.
-    2. Exposes audio_bytes for Streamlit browser audio playback.
-    Background worker thread manages speech timing, 3.5s cooldowns, priority queueing,
-    and prevents duplicate audio replay or mid-sentence interruptions.
+    1. Plays directly through system speakers via Pygame when running locally.
+    2. Serves audio_bytes to Streamlit st.audio() for Streamlit Cloud browser playback.
     """
     _instance = None
     _lock = threading.Lock()
@@ -36,7 +34,6 @@ class AudioManager:
         self.queue = PriorityQueue()
         self.cooldown_seconds = 3.5
         self.current_audio = None  # dict with audio_bytes, audio_id, text, expire_time
-        self.rendered_ids = set()
         self.recent_phrase_ids = []
         self.latest_spoken_text = "AI Coach ready!"
         self.lock = threading.Lock()
@@ -123,17 +120,11 @@ class AudioManager:
                 print("AudioManager worker exception:", e)
                 time.sleep(0.5)
 
-    def get_current_audio_to_play(self):
+    def get_active_audio(self):
         with self.lock:
             if not self.current_audio:
                 return None
-            audio_id = self.current_audio["audio_id"]
-            if audio_id in self.rendered_ids:
-                return None
-            self.rendered_ids.add(audio_id)
-            if len(self.rendered_ids) > 20:
-                self.rendered_ids.clear()
-            return self.current_audio["audio_bytes"], audio_id, self.current_audio["text"]
+            return self.current_audio["audio_bytes"], self.current_audio["audio_id"]
 
     def get_latest_text(self):
         with self.lock:
