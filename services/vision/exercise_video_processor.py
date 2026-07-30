@@ -1,4 +1,3 @@
-
 import os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["OPENCV_VIDEOWRITE_GPU_API"] = "0"
@@ -18,6 +17,8 @@ from detectors.shoulder_press import ShoulderPressDetector
 from detectors.lunges import LungesDetector
 
 from services.config.workout_config import POSE_CONNECTIONS
+from services.coaching.voice_pipeline import VoicePipeline
+from services.coaching.tts import TextToSpeech
 
 
 class VideoProcessorClass(VideoProcessorBase):
@@ -25,10 +26,15 @@ class VideoProcessorClass(VideoProcessorBase):
         self._lock = threading.Lock()
         self._latest_metrics = None
         self._exercise_type = "Squats"
+        self._experience_level = "Intermediate"
         self.frame_count = 0
         self.process_every = 3  
         self.last_processed_frame = None
         self.prev_landmarks = None
+        self.last_voice_eval_time = 0.0
+        self.last_rep_count = 0
+
+        self.voice_pipeline = VoicePipeline(tts=TextToSpeech())
 
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(
@@ -61,7 +67,15 @@ class VideoProcessorClass(VideoProcessorBase):
     def get_exercise(self):
         with self._lock:
             return self._exercise_type
-        
+
+    def set_experience_level(self, level):
+        with self._lock:
+            self._experience_level = level
+
+    def get_experience_level(self):
+        with self._lock:
+            return self._experience_level
+
     def smooth_points(self, landmarks, alpha=0.65):
         if self.prev_landmarks is None:
             self.prev_landmarks = landmarks
@@ -87,9 +101,6 @@ class VideoProcessorClass(VideoProcessorBase):
                 p2 = landmarks[end_idx]
                 cv2.line(img, (int(p1.x * w), int(p1.y * h)), (int(p2.x * w), int(p2.y * h)), (0, 255, 0), 2)
 
-    def _draw_no_pose_warnings(self, img):
-        cv2.putText(img, "NO POSE DETECTED", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
     def recv(self, frame):
         try:
             image = frame.to_ndarray(format="bgr24")
@@ -104,6 +115,7 @@ class VideoProcessorClass(VideoProcessorBase):
             image = cv2.convertScaleAbs(image, alpha=1.2, beta=20)
             rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = self.pose.process(rgb)
+            now = time.time()
 
             if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
@@ -111,6 +123,7 @@ class VideoProcessorClass(VideoProcessorBase):
                 self._draw_skeleton(image, landmarks)
 
                 ex_type = self.get_exercise()
+                exp_level = self.get_experience_level()
                 detector = self._detectors.get(ex_type)
 
                 if detector:
@@ -118,17 +131,33 @@ class VideoProcessorClass(VideoProcessorBase):
                         metrics = detector.process(landmarks)
                         if metrics is None:
                             metrics = self.get_latest_metrics() or {"reps": 0, "pose_detected": True}
-                    except Exception as e:
+                    except Exception:
                         metrics = self.get_latest_metrics() or {"reps": 0, "pose_detected": True}
 
                     metrics["pose_detected"] = True 
                     self.set_latest_metrics(metrics)
+
+                    reps = metrics.get("reps", 0)
+                    event_type = "ongoing_form_check"
+
+                    if reps > self.last_rep_count:
+                        event_type = "rep_completed"
+                        self.last_rep_count = reps
+
+                    # Continuous evaluation every ~1.8 seconds or immediately on rep completion
+                    if event_type == "rep_completed" or (now - self.last_voice_eval_time > 1.8):
+                        self.voice_pipeline.evaluate_and_speak(event_type, ex_type, metrics, exp_level)
+                        self.last_voice_eval_time = now
                 else:
                     self.set_latest_metrics({"pose_detected": True, "reps": 0})
             else:
                 old_m = self.get_latest_metrics() or {"reps": 0}
                 old_m["pose_detected"] = False
                 self.set_latest_metrics(old_m)
+
+                if now - self.last_voice_eval_time > 5.0:
+                    self.voice_pipeline.evaluate_and_speak("no_pose_detected", self.get_exercise(), old_m, self.get_experience_level())
+                    self.last_voice_eval_time = now
             
             self.last_processed_frame = image.copy()
             return av.VideoFrame.from_ndarray(image, format="bgr24")

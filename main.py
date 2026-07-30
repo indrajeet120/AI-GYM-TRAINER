@@ -10,17 +10,12 @@ from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS, EXPERIENCE_LEVELS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
 from services.ui.audio_player import render_persistent_audio_player
-from services.persistence.exercise_repository import init_db
+from services.coaching.audio_manager import AudioManager
+from services.persistence.exercise_repository import init_db, get_users_exercises
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
 from services.tracking.metrics import sync_metrics_update
-from services.persistence.exercise_repository import get_users_exercises
-from groq import Groq
-from services.coaching.llm import LLMCoach
-from services.coaching.tts import TextToSpeech
-from services.coaching.voice_pipeline import VoicePipeline
 from dotenv import load_dotenv
-from streamlit_autorefresh import st_autorefresh
 
 load_dotenv()
 
@@ -42,22 +37,7 @@ def main():
         return 
 
     initial_session_defaults()
-
-    if "current_audio_tuple" not in st.session_state:
-        st.session_state.current_audio_tuple = None
-
-    if "last_spoken_rep" not in st.session_state:
-        st.session_state.last_spoken_rep = 0
-
-    if "voice_pipeline" not in st.session_state:
-        try:
-            api_key = os.getenv("GROQ_API_KEY")
-            groq_client = Groq(api_key=api_key) if api_key else None
-            llm_coach = LLMCoach(groq_client) if groq_client else None
-            tts = TextToSpeech()
-            st.session_state.voice_pipeline = VoicePipeline(llm_coach, tts)
-        except Exception as e:
-            st.session_state.voice_pipeline = VoicePipeline(None, TextToSpeech())
+    audio_mgr = AudioManager()
 
     workout_started = st.session_state.get("workout_started", False)
     
@@ -88,7 +68,6 @@ def main():
                 st.session_state.set_cycle_started_at = time.time()
                 st.session_state.last_saved_sets_completed = 0
                 st.session_state.last_spoken_rep = 0
-                st.session_state.coach_feedback_text = "Session Started! Get into position."
                 st.rerun()
         else:
             exercise = st.session_state.get("exercise_type")
@@ -101,7 +80,6 @@ def main():
 
             if end_session_button:
                 st.session_state.workout_started = False
-                st.session_state.coach_feedback_text = "Workout Ended. Great effort!"
                 st.rerun()
 
         if workout_started:
@@ -148,7 +126,7 @@ def main():
                 st.metric("Balance Status", st.session_state.balance_status)
 
     st.title("🏋️ AI Real-time GYM Coach")
-    st.markdown("##### AI-Powered Form Analysis & Uninterrupted Proactive Voice Coaching")
+    st.markdown("##### AI-Powered Form Analysis & Continuous Proactive Voice Coaching")
 
     if not workout_started:
         st.markdown(
@@ -160,8 +138,8 @@ def main():
         )
     else:
         # Live AI Coach Spoken Cues Banner
-        coach_text = st.session_state.get("coach_feedback_text", "AI Coach Ready!")
-        st.info(f"🎙️ **AI Coach Live:** {coach_text}")
+        latest_text = audio_mgr.get_latest_text()
+        st.info(f"🎙️ **AI Coach Live:** {latest_text}")
 
         # WebRTC Camera Streamer
         context = webrtc_streamer(
@@ -177,43 +155,13 @@ def main():
         )
 
         if context.video_processor:
-            context.video_processor.set_exercise(st.session_state.get("exercise_type", "Squats"))
             sync_metrics_update(context)
 
-            latest_processor_metrics = context.video_processor.get_latest_metrics()
-            if latest_processor_metrics:
-                processor_reps = latest_processor_metrics.get("reps", 0)
-                last_spoken = st.session_state.last_spoken_rep
-                exp_level = st.session_state.get("experience_level", "Intermediate")
-
-                if processor_reps > last_spoken:
-                    if st.session_state.voice_pipeline:
-                        metric_context = latest_processor_metrics.copy()
-                        metric_context["target_sets"] = st.session_state.get("target_sets", 0)
-                        metric_context["sets_completed"] = st.session_state.get("sets_completed", 0)
-
-                        res = st.session_state.voice_pipeline.process_event(
-                            event="rep_completed",
-                            exercise=st.session_state.get("exercise_type"),
-                            metrics=metric_context,
-                            experience_level=exp_level
-                        )
-
-                        if res:
-                            audio, text, msg_id = res
-                            if audio and msg_id:
-                                st.session_state.current_audio_tuple = (audio, msg_id)
-                            if text:
-                                st.session_state.coach_feedback_text = text
-
-                        st.session_state.last_spoken_rep = processor_reps
-
-        # Render Persistent Background HTML5 Audio Player (Zero Interruption across Streamlit Reruns)
-        if st.session_state.current_audio_tuple:
-            audio_bytes, audio_id = st.session_state.current_audio_tuple
+        # Check and render persistent background audio player without forcing page reruns
+        audio_item = audio_mgr.get_current_audio_to_play()
+        if audio_item:
+            audio_bytes, audio_id, _ = audio_item
             render_persistent_audio_player(audio_bytes, audio_id)
-
-        st_autorefresh(interval=3000, key="gym_counter_refresh")
 
     inject_webrtc_styles()
 

@@ -1,114 +1,16 @@
 import time
 import random
-import hashlib
-import threading
-from queue import PriorityQueue
-
-
-class VoiceQueueManager:
-    """
-    Thread-safe priority queue manager for AI Gym Trainer audio cues.
-    Prevents audio interruptions, enforces a 3-5s cooldown between sentences,
-    cancels duplicate/stale messages, and prioritizes safety-critical form corrections.
-    """
-    def __init__(self, cooldown_seconds=3.5):
-        self.cooldown_seconds = cooldown_seconds
-        self._queue = PriorityQueue()
-        self._lock = threading.Lock()
-        self.is_speaking = False
-        self.speech_end_time = 0.0
-        self.last_spoken_id = None
-        self.recent_phrase_ids = []
-
-    def estimate_speech_duration(self, text):
-        words = len(text.split())
-        # ~2.5 words per second + 0.6s padding for TTS audio start/end
-        return max(2.2, (words / 2.5) + 0.6)
-
-    def is_speech_active(self, now=None):
-        if now is None:
-            now = time.time()
-        return now < self.speech_end_time
-
-    def can_speak_now(self, now=None):
-        if now is None:
-            now = time.time()
-        # Must finish current sentence PLUS cooldown period
-        return now >= (self.speech_end_time + self.cooldown_seconds)
-
-    def enqueue(self, priority, text, event_type, audio_data=None):
-        """
-        Priority levels:
-        1: Critical Safety (Postural errors, spine collapse, excessive arch, sagging hips)
-        2: Range of Motion & Speed (Partial reps, rushing/too fast)
-        3: Milestones & Set Completion (Rep praise, set complete, workout complete)
-        4: Inactivity & Encouragement
-        """
-        now = time.time()
-        msg_id = hashlib.md5(text.encode("utf-8")).hexdigest()
-
-        with self._lock:
-            # Don't queue identical phrase if recently spoken
-            if msg_id in self.recent_phrase_ids[-4:]:
-                return False
-
-            # Clear stale low-priority items if queue has > 3 items
-            if self._queue.qsize() > 3:
-                temp_list = []
-                while not self._queue.empty():
-                    item = self._queue.get()
-                    # Keep priority 1 & 2 items queued within last 5 seconds
-                    if item[0] <= 2 and (now - item[1]["timestamp"]) < 5.0:
-                        temp_list.append(item)
-                for item in temp_list:
-                    self._queue.put(item)
-
-            item_data = {
-                "text": text,
-                "event_type": event_type,
-                "msg_id": msg_id,
-                "timestamp": now,
-                "audio_data": audio_data
-            }
-            # PriorityQueue sorts by first element (priority level 1..4, then timestamp)
-            self._queue.put((priority, now, item_data))
-            return True
-
-    def get_next_speech(self, now=None):
-        if now is None:
-            now = time.time()
-
-        if not self.can_speak_now(now):
-            return None
-
-        with self._lock:
-            while not self._queue.empty():
-                priority, ts, data = self._queue.get()
-                # Discard messages older than 6 seconds (stale context)
-                if (now - ts) > 6.0:
-                    continue
-
-                duration = self.estimate_speech_duration(data["text"])
-                self.speech_end_time = now + duration
-                self.last_spoken_id = data["msg_id"]
-                self.recent_phrase_ids.append(data["msg_id"])
-                if len(self.recent_phrase_ids) > 10:
-                    self.recent_phrase_ids.pop(0)
-
-                data["duration"] = duration
-                return data
-
-        return None
+from services.coaching.audio_manager import AudioManager
 
 
 class VoicePipeline:
     def __init__(self, llm=None, tts=None):
         self.llm = llm
         self.tts = tts
-        self.queue_manager = VoiceQueueManager(cooldown_seconds=3.5)
+        self.audio_manager = AudioManager()
         self.last_status = None
+        self.last_rep_evaluated = 0
 
-        # --- Dynamic Non-Repeating Phrase Pools ---
         self.MOTIVATIONAL_REPS = {
             "Beginner": [
                 "Great pace! Keep your focus.",
@@ -252,11 +154,7 @@ class VoicePipeline:
             "All sets finished! Great dedication!"
         ])
 
-    def _select_phrase(self, pool):
-        return self.queue_manager._queue and random.choice(pool) or random.choice(pool)
-
-    def process_event(self, event, exercise, metrics, experience_level="Intermediate"):
-        now = time.time()
+    def evaluate_and_speak(self, event, exercise, metrics, experience_level="Intermediate"):
         text = None
         priority = 3
 
@@ -266,78 +164,87 @@ class VoicePipeline:
         partial = metrics.get("partial_rep", False)
         inactivity = metrics.get("inactivity_warning", False)
 
-        # 1. SET COMPLETED
         if event == "set_completed":
             priority, pool = self.SET_COMPLETED_CUES
             text = random.choice(pool)
             self.last_status = "set_completed"
 
-        # 2. WORKOUT COMPLETED
         elif event == "workout_completed":
             priority, pool = self.WORKOUT_COMPLETED_CUES
             text = random.choice(pool)
             self.last_status = "workout_completed"
 
-        # 3. NO POSE DETECTED
         elif event == "no_pose_detected":
             priority = 2
             text = "Please step inside the camera frame so I can guide your form."
             self.last_status = "no_pose"
 
-        # 4. IN-REP FORM & POSTURE CHECK
         elif event in ["ongoing_form_check", "rep_completed"]:
             cues = self.POSTURE_CUES.get(exercise, {})
 
-            # Priority 1: Check Specific Posture Issues
+            # Priority 1: Posture Check
             if exercise == "Squats":
                 posture = metrics.get("posture_status", "")
                 depth = metrics.get("depth_status", "")
-                if posture in cues:
+                if posture in cues and self.last_status != posture:
                     p, pool = cues[posture]
                     text, priority = random.choice(pool), p
+                    self.last_status = posture
                 elif depth == "Too High" and self.last_status != "Too High":
                     p, pool = cues["Too High"]
                     text, priority = random.choice(pool), p
+                    self.last_status = "Too High"
+
             elif exercise == "Push-ups":
                 alignment = metrics.get("body_alignment", "")
                 hip = metrics.get("hip_status", "")
                 if alignment != "Straight" and self.last_status != "Alignment":
                     p, pool = cues.get("Alignment", (1, ["Keep your body straight."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Alignment"
                 elif hip == "SAGGING" and self.last_status != "Hip":
                     p, pool = cues.get("Hip", (1, ["Lift your hips slightly."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Hip"
+
             elif exercise == "Biceps Curls (Dumbbell)":
                 swing = metrics.get("swing_status", "")
                 shoulder = metrics.get("shoulder_status", "")
                 if swing == "SWINGING" and self.last_status != "Swing":
                     p, pool = cues.get("Swing", (1, ["Avoid swinging."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Swing"
                 elif shoulder != "STABLE" and self.last_status != "Shoulder":
                     p, pool = cues.get("Shoulder", (1, ["Keep your shoulder stable."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Shoulder"
+
             elif exercise == "Shoulder Press":
                 back_arch = metrics.get("back_arch_status", "")
                 if back_arch == "Excessive Arch" and self.last_status != "Excessive Arch":
                     p, pool = cues.get("Excessive Arch", (1, ["Brace your core."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Excessive Arch"
                 elif back_arch == "Slight Arch" and self.last_status != "Slight Arch":
                     p, pool = cues.get("Slight Arch", (1, ["Stay tall."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Slight Arch"
+
             elif exercise == "Lunges":
                 balance = metrics.get("balance_status", "")
                 if balance == "OFF BALANCE" and self.last_status != "Balance":
                     p, pool = cues.get("Balance", (1, ["Keep your balance steady."]))
                     text, priority = random.choice(pool), p
+                    self.last_status = "Balance"
 
-            # Priority 2: Partial Rep Warning
+            # Priority 2: Partial Rep Check
             if not text and (partial or rom == "PARTIAL") and self.last_status != "PARTIAL":
                 if "PARTIAL" in cues:
                     p, pool = cues["PARTIAL"]
                     text, priority = random.choice(pool), p
                     self.last_status = "PARTIAL"
 
-            # Priority 2: Speed / Rushing Warning
+            # Priority 2: Speed Check
             if not text and speed == "TOO FAST" and self.last_status != "TOO FAST":
                 p, pool = self.SPEED_CUES
                 text, priority = random.choice(pool), p
@@ -349,27 +256,19 @@ class VoicePipeline:
                 text, priority = random.choice(pool), p
                 self.last_status = "INACTIVITY"
 
-            # Priority 3: Rep Completion Praise (Every rep or milestone reps: 3, 5, 7, 10)
-            if not text and event == "rep_completed":
+            # Priority 3: Rep Praise
+            if not text and event == "rep_completed" and current_rep > self.last_rep_evaluated:
+                self.last_rep_evaluated = current_rep
                 level_pool = self.MOTIVATIONAL_REPS.get(experience_level, self.MOTIVATIONAL_REPS["Intermediate"])
                 praise = random.choice(level_pool)
                 text = f"{praise} Rep {current_rep}."
                 priority = 3
                 self.last_status = f"rep_{current_rep}"
 
-        # If a phrase was selected, generate TTS audio and enqueue
-        if text:
-            audio_data = None
-            if self.tts:
-                audio_data = self.tts.speak(text)
-            self.queue_manager.enqueue(priority, text, event, audio_data=audio_data)
-
-        # Check if queue has a pending speech item ready for playback
-        speech_item = self.queue_manager.get_next_speech(now)
-        if speech_item:
-            audio = speech_item.get("audio_data")
-            spk_text = speech_item.get("text")
-            msg_id = speech_item.get("msg_id")
-            return audio, spk_text, msg_id
+        if text and self.tts:
+            audio_bytes = self.tts.speak(text)
+            if audio_bytes:
+                self.audio_manager.enqueue_speech(priority, text, audio_bytes)
+                return text
 
         return None

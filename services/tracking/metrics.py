@@ -13,8 +13,13 @@ def sync_metrics_update(context):
         return 
     
     exercise = st.session_state.get("exercise_type")
+    exp_level = st.session_state.get("experience_level", "Intermediate")
     if not exercise:
         return
+
+    # Keep video processor configured with current exercise and experience level
+    processor.set_exercise(exercise)
+    processor.set_experience_level(exp_level)
 
     latest_metrics = processor.get_latest_metrics()
     if not latest_metrics:
@@ -48,7 +53,6 @@ def sync_metrics_update(context):
     st.session_state.workout_completed = workout_completed
 
     last_saved_sets = st.session_state.get("last_saved_sets_completed", 0)
-    exp_level = st.session_state.get("experience_level", "Intermediate")
 
     # 1. SET COMPLETED EVENT
     if target_sets > 0 and reps_per_set > 0 and sets_completed > last_saved_sets:
@@ -60,19 +64,8 @@ def sync_metrics_update(context):
 
         add_exercise(user_id, exercise, newly_completed * reps_per_set, newly_completed, time_taken)
 
-        if st.session_state.get("voice_pipeline"):
-            res = st.session_state.voice_pipeline.process_event(
-                event="set_completed",
-                exercise=exercise,
-                metrics=latest_metrics,
-                experience_level=exp_level
-            )
-            if res:
-                audio, text, msg_id = res
-                if audio and msg_id:
-                    st.session_state.current_audio_tuple = (audio, msg_id)
-                if text:
-                    st.session_state.coach_feedback_text = text
+        if hasattr(processor, "voice_pipeline"):
+            processor.voice_pipeline.evaluate_and_speak("set_completed", exercise, latest_metrics, exp_level)
 
         st.session_state.set_cycle_started_at = now_ts
         st.session_state.last_saved_sets_completed = sets_completed
@@ -81,35 +74,5 @@ def sync_metrics_update(context):
     if workout_completed and not st.session_state.get("last_notified_workout_complete", False):
         st.session_state.last_notified_workout_complete = True
 
-        if st.session_state.get("voice_pipeline"):
-            res = st.session_state.voice_pipeline.process_event(
-                event="workout_completed",
-                exercise=exercise,
-                metrics=latest_metrics,
-                experience_level=exp_level
-            )
-            if res:
-                audio, text, msg_id = res
-                if audio and msg_id:
-                    st.session_state.current_audio_tuple = (audio, msg_id)
-                if text:
-                    st.session_state.coach_feedback_text = text
-
-    # 3. NO POSE DETECTED EVENT
-    pose_detected = latest_metrics.get("pose_detected", True)
-    if not pose_detected and st.session_state.get("voice_pipeline"):
-        last_pose_alert = st.session_state.get("last_pose_alert_time", 0)
-        if time.time() - last_pose_alert > 6.0:
-            res = st.session_state.voice_pipeline.process_event(
-                event="no_pose_detected",
-                exercise=exercise,
-                metrics={"issue": "No pose detected"},
-                experience_level=exp_level
-            )
-            if res:
-                audio, text, msg_id = res
-                if audio and msg_id:
-                    st.session_state.current_audio_tuple = (audio, msg_id)
-                if text:
-                    st.session_state.coach_feedback_text = text
-                st.session_state.last_pose_alert_time = time.time()
+        if hasattr(processor, "voice_pipeline"):
+            processor.voice_pipeline.evaluate_and_speak("workout_completed", exercise, latest_metrics, exp_level)
