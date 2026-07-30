@@ -1,7 +1,3 @@
-
-
-
-# -------------------------------------------
 import streamlit as st
 import time
 from services.config.workout_config import METRICS_FIELDS
@@ -13,39 +9,27 @@ def sync_metrics_update(context):
         return
     
     processor = getattr(context, "video_processor", None)
-
     if not processor:
         return 
     
     exercise = st.session_state.get("exercise_type")
-
     if not exercise:
         return
-    
 
     latest_metrics = processor.get_latest_metrics()
-
     if not latest_metrics:
         return
     
     reps = latest_metrics.get("reps", 0)
-
     if reps is None:
         reps = 0
-        
-    # 📝 Note: st.session_state.reps ko yahan update karna correct approach hai,
-   # provided main.py is value ko video processor ke live rep counter ke saath
-   # properly sync aur compare kare.
 
     st.session_state.reps = reps
 
     fields = METRICS_FIELDS.get(exercise)
-
-    if not fields:
-        return 
-
-    for key, default in fields.items():
-        st.session_state[key] = latest_metrics.get(key, default)
+    if fields:
+        for key, default in fields.items():
+            st.session_state[key] = latest_metrics.get(key, default)
 
     reps_per_set = st.session_state.get("reps_per_set", 0)
     target_sets = st.session_state.get("target_sets", 0)
@@ -64,8 +48,9 @@ def sync_metrics_update(context):
     st.session_state.workout_completed = workout_completed
 
     last_saved_sets = st.session_state.get("last_saved_sets_completed", 0)
+    exp_level = st.session_state.get("experience_level", "Intermediate")
 
-    # ---------------- SET COMPLETED EVENT ----------------
+    # 1. SET COMPLETED EVENT
     if target_sets > 0 and reps_per_set > 0 and sets_completed > last_saved_sets:
         newly_completed = sets_completed - last_saved_sets
         now_ts = time.time()
@@ -76,49 +61,58 @@ def sync_metrics_update(context):
         add_exercise(user_id, exercise, newly_completed * reps_per_set, newly_completed, time_taken)
 
         if st.session_state.get("voice_pipeline"):
-            result = st.session_state.voice_pipeline.process_event(
+            res = st.session_state.voice_pipeline.process_event(
                 event="set_completed",
                 exercise=exercise,
                 metrics=latest_metrics,
+                experience_level=exp_level
             )
-
-            if result:
-                st.session_state.audio_to_play  = result #, st.session_state.coach_feedback = result
-                st.rerun()  # 🔥"Set complete hote hi immediate voice feedback play karne ke liye."
+            if res:
+                audio, text = res if isinstance(res, tuple) else (res, "Great set completed!")
+                if audio:
+                    st.session_state.audio_to_play = audio
+                if text:
+                    st.session_state.coach_feedback_text = text
+                st.rerun()
 
         st.session_state.set_cycle_started_at = now_ts
         st.session_state.last_saved_sets_completed = sets_completed
 
-    # ---------------- WORKOUT COMPLETED EVENT ----------------
+    # 2. WORKOUT COMPLETED EVENT
     if workout_completed and not st.session_state.get("last_notified_workout_complete", False):
         st.session_state.last_notified_workout_complete = True
 
         if st.session_state.get("voice_pipeline"):
-            result = st.session_state.voice_pipeline.process_event(
+            res = st.session_state.voice_pipeline.process_event(
                 event="workout_completed",
                 exercise=exercise,
                 metrics=latest_metrics,
+                experience_level=exp_level
             )
+            if res:
+                audio, text = res if isinstance(res, tuple) else (res, "Workout completed!")
+                if audio:
+                    st.session_state.audio_to_play = audio
+                if text:
+                    st.session_state.coach_feedback_text = text
+                st.rerun()
 
-            if result:
-                st.session_state.audio_to_play  = result #, st.session_state.coach_feedback = result
-                st.rerun()  # 🔥"Workout complete hote hi immediate voice feedback trigger karne ke liye rerun mechanism."
-                
-    # ---------------- NO POSE DETECTED EVENT ----------------
+    # 3. NO POSE DETECTED EVENT
     pose_detected = latest_metrics.get("pose_detected", True)
-    
     if not pose_detected and st.session_state.get("voice_pipeline"):
-      # Repeated alerts ko prevent karne ke liye ek cooldown flag ka use karna better approach hai,
-# jisse same alert short interval mein multiple times trigger na ho.
         last_pose_alert = st.session_state.get("last_pose_alert_time", 0)
-        if time.time() - last_pose_alert > 5:  #"Warning trigger ke liye 5 seconds ka cooldown set kiya gaya hai, jisse ek hi warning baar-baar repeat nahi hogi."
-            result = st.session_state.voice_pipeline.process_event(
+        if time.time() - last_pose_alert > 6.0:
+            res = st.session_state.voice_pipeline.process_event(
                 event="no_pose_detected",
                 exercise=exercise,
-                metrics={"issue": "No pose detected! Please step into the camera frame."},
+                metrics={"issue": "No pose detected"},
+                experience_level=exp_level
             )
-        
-            if result:
-                st.session_state.audio_to_play  = result #, st.session_state.coach_feedback = result
+            if res:
+                audio, text = res if isinstance(res, tuple) else (res, "Please step inside the camera frame.")
+                if audio:
+                    st.session_state.audio_to_play = audio
+                if text:
+                    st.session_state.coach_feedback_text = text
                 st.session_state.last_pose_alert_time = time.time()
                 st.rerun()

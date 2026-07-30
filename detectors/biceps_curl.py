@@ -1,4 +1,5 @@
 import math
+import time
 from core.base_exercise import BaseExercise
 
 
@@ -20,30 +21,26 @@ class BicepsCurlDetector(BaseExercise):
 
     def __init__(self):
         super().__init__()
-        self._shoulder_x_baseline = None
+        self.reset()
 
     def reset(self) -> None:
         self.reps = 0
         self.stage = None
-        self._shoulder_x_baseline = None
+        self.stage_start_time = None
+        self.last_rep_time = time.time()
+        self.min_elbow_angle = 180
 
     def process(self, landmarks) -> dict:
-        # left_vis = landmarks[self.LEFT_ELBOW].visibility
-        # right_vis = landmarks[self.RIGHT_ELBOW].visibility
         try:
-           left_vis = landmarks[self.LEFT_ELBOW].visibility
-           right_vis = landmarks[self.RIGHT_ELBOW].visibility
-        except:
-         return None
+            left_vis = landmarks[self.LEFT_ELBOW].visibility
+            right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        except Exception:
+            return None
 
         if left_vis >= right_vis:
-            shoulder_idx = self.LEFT_SHOULDER
-            elbow_idx = self.LEFT_ELBOW
-            wrist_idx = self.LEFT_WRIST
+            shoulder_idx, elbow_idx, wrist_idx = self.LEFT_SHOULDER, self.LEFT_ELBOW, self.LEFT_WRIST
         else:
-            shoulder_idx = self.RIGHT_SHOULDER
-            elbow_idx = self.RIGHT_ELBOW
-            wrist_idx = self.RIGHT_WRIST
+            shoulder_idx, elbow_idx, wrist_idx = self.RIGHT_SHOULDER, self.RIGHT_ELBOW, self.RIGHT_WRIST
 
         elbow_angle = self.calculate_angle(
             self.get_point(landmarks, shoulder_idx),
@@ -51,15 +48,39 @@ class BicepsCurlDetector(BaseExercise):
             self.get_point(landmarks, wrist_idx),
         )
 
-        key_landmarks_visible = landmarks[shoulder_idx].visibility > self.MIN_VISIBILITY and landmarks[elbow_idx].visibility > self.MIN_VISIBILITY and landmarks[wrist_idx].visibility > self.MIN_VISIBILITY
+        if elbow_angle is None:
+            return {"reps": self.reps, "pose_detected": True, "inactivity_warning": False}
 
-        if key_landmarks_visible:
-            if elbow_angle < self.UP_THRESHOLD:
+        now = time.time()
+        speed_status = "NORMAL"
+        partial_rep = False
+
+        if self.stage == "up":
+            self.min_elbow_angle = min(self.min_elbow_angle, elbow_angle)
+
+        if elbow_angle < self.UP_THRESHOLD:
+            if self.stage != "up":
                 self.stage = "up"
+                self.stage_start_time = now
+                self.min_elbow_angle = elbow_angle
 
-            if elbow_angle > self.DOWN_THRESHOLD and self.stage == "up":
-                self.stage = "down"
-                self.reps += 1
+        if elbow_angle > self.DOWN_THRESHOLD and self.stage == "up":
+            rep_duration = now - (self.stage_start_time or now)
+            self.stage = "down"
+
+            if self.min_elbow_angle > (self.UP_THRESHOLD + 10):
+                partial_rep = True
+
+            if rep_duration < 0.7:
+                speed_status = "TOO FAST"
+            else:
+                speed_status = "CONTROLLED"
+
+            self.reps += 1
+            self.last_rep_time = now
+            self.min_elbow_angle = 180
+
+        inactivity = (now - self.last_rep_time > 8.0) and (self.stage != "up")
 
         shoulder_x = landmarks[shoulder_idx].x
         elbow_x = landmarks[elbow_idx].x
@@ -72,33 +93,31 @@ class BicepsCurlDetector(BaseExercise):
 
         shoulder_mid_x = (landmarks[self.LEFT_SHOULDER].x + landmarks[self.RIGHT_SHOULDER].x) / 2
         shoulder_mid_y = (landmarks[self.LEFT_SHOULDER].y + landmarks[self.RIGHT_SHOULDER].y) / 2
-
         hip_mid_x = (landmarks[self.LEFT_HIP].x + landmarks[self.RIGHT_HIP].x) / 2
         hip_mid_y = (landmarks[self.LEFT_HIP].y + landmarks[self.RIGHT_HIP].y) / 2
 
         dx = shoulder_mid_x - hip_mid_x
         dy = shoulder_mid_y - hip_mid_y
+        torso_angle = self._safe_angle(dx, dy)
 
-        torso_angle_from_vertical = self._safe_angle(dx, dy)
-
-        if torso_angle_from_vertical <= self.SWING_THRESHOLD:
+        if torso_angle <= self.SWING_THRESHOLD:
             swing_status = "NO SWING"
         else:
             swing_status = "SWINGING"
-        
-        if elbow_angle is None:
-              return {
-              "reps": self.reps,
-              "pose_detected": True
-             }
-    
+
+        rom_status = "PARTIAL" if partial_rep else ("FULL" if elbow_angle < self.UP_THRESHOLD else "NORMAL")
+
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),
             "shoulder_status": shoulder_status,
             "swing_status": swing_status,
+            "speed_status": speed_status,
+            "rom_status": rom_status,
+            "partial_rep": partial_rep,
+            "inactivity_warning": inactivity,
+            "pose_detected": True
         }
 
     def _safe_angle(self, dx, dy):
         return math.degrees(math.atan2(abs(dx), abs(dy))) if dy != 0 else 0.0
-    

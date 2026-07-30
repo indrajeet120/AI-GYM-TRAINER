@@ -1,3 +1,4 @@
+import time
 from core.base_exercise import BaseExercise
 
 
@@ -20,32 +21,28 @@ class PushUpDetector(BaseExercise):
 
     def __init__(self):
         super().__init__()
+        self.reset()
 
     def reset(self) -> None:
         self.reps = 0
         self.stage = None
+        self.stage_start_time = None
+        self.last_rep_time = time.time()
+        self.min_elbow_angle = 180
 
     def process(self, landmarks) -> dict:
-        # left_vis = landmarks[self.LEFT_ELBOW].visibility
-        # right_vis = landmarks[self.RIGHT_ELBOW].visibility
         try:
-          left_vis = landmarks[self.LEFT_ELBOW].visibility
-          right_vis = landmarks[self.RIGHT_ELBOW].visibility
-        except:
-         return None
+            left_vis = landmarks[self.LEFT_ELBOW].visibility
+            right_vis = landmarks[self.RIGHT_ELBOW].visibility
+        except Exception:
+            return None
 
         if left_vis >= right_vis:
-            shoulder_idx = self.LEFT_SHOULDER
-            elbow_idx = self.LEFT_ELBOW
-            wrist_idx = self.LEFT_WRIST
-            hip_idx = self.LEFT_HIP
-            ankle_idx = self.LEFT_ANKLE
+            shoulder_idx, elbow_idx, wrist_idx = self.LEFT_SHOULDER, self.LEFT_ELBOW, self.LEFT_WRIST
+            hip_idx, ankle_idx = self.LEFT_HIP, self.LEFT_ANKLE
         else:
-            shoulder_idx = self.RIGHT_SHOULDER
-            elbow_idx = self.RIGHT_ELBOW
-            wrist_idx = self.RIGHT_WRIST
-            hip_idx = self.RIGHT_HIP
-            ankle_idx = self.RIGHT_ANKLE
+            shoulder_idx, elbow_idx, wrist_idx = self.RIGHT_SHOULDER, self.RIGHT_ELBOW, self.RIGHT_WRIST
+            hip_idx, ankle_idx = self.RIGHT_HIP, self.RIGHT_ANKLE
 
         elbow_angle = self.calculate_angle(
             self.get_point(landmarks, shoulder_idx),
@@ -59,6 +56,9 @@ class PushUpDetector(BaseExercise):
             self.get_point(landmarks, ankle_idx),
         )
 
+        if elbow_angle is None or body_angle is None:
+            return {"reps": self.reps, "pose_detected": True, "inactivity_warning": False}
+
         shoulder_y = landmarks[shoulder_idx].y
         ankle_y = landmarks[ankle_idx].y
         hip_y = landmarks[hip_idx].y
@@ -66,15 +66,36 @@ class PushUpDetector(BaseExercise):
         expected_hip_y = (shoulder_y + ankle_y) / 2
         hip_deviation = hip_y - expected_hip_y
 
-        key_landmarks_visible = landmarks[shoulder_idx].visibility > self.MIN_VISIBILITY and landmarks[elbow_idx].visibility > self.MIN_VISIBILITY and landmarks[wrist_idx].visibility > self.MIN_VISIBILITY and landmarks[hip_idx].visibility > self.MIN_VISIBILITY
-        
-        if key_landmarks_visible:
-            if elbow_angle < self.DOWN_THRESHOLD:
-                self.stage = "down"
+        now = time.time()
+        speed_status = "NORMAL"
+        partial_rep = False
 
-            if elbow_angle > self.UP_THRESHOLD and self.stage == "down":
-                self.stage = "up"
-                self.reps += 1
+        if self.stage == "down":
+            self.min_elbow_angle = min(self.min_elbow_angle, elbow_angle)
+
+        if elbow_angle < self.DOWN_THRESHOLD:
+            if self.stage != "down":
+                self.stage = "down"
+                self.stage_start_time = now
+                self.min_elbow_angle = elbow_angle
+
+        if elbow_angle > self.UP_THRESHOLD and self.stage == "down":
+            rep_duration = now - (self.stage_start_time or now)
+            self.stage = "up"
+
+            if self.min_elbow_angle > (self.DOWN_THRESHOLD - 5):
+                partial_rep = True
+
+            if rep_duration < 0.75:
+                speed_status = "TOO FAST"
+            else:
+                speed_status = "CONTROLLED"
+
+            self.reps += 1
+            self.last_rep_time = now
+            self.min_elbow_angle = 180
+
+        inactivity = (now - self.last_rep_time > 8.0) and (self.stage != "down")
 
         if body_angle > 160:
             body_alignment = "Straight"
@@ -89,16 +110,17 @@ class PushUpDetector(BaseExercise):
             hip_status = "SAGGING"
         else:
             hip_status = "PIKED UP"
-        
-        if elbow_angle is None:
-              return {
-              "reps": self.reps,
-              "pose_detected": True
-             }
+
+        rom_status = "PARTIAL" if partial_rep else ("FULL" if elbow_angle < self.DOWN_THRESHOLD else "NORMAL")
+
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),
             "body_alignment": body_alignment,
             "hip_status": hip_status,
+            "speed_status": speed_status,
+            "rom_status": rom_status,
+            "partial_rep": partial_rep,
+            "inactivity_warning": inactivity,
+            "pose_detected": True
         }
-    
