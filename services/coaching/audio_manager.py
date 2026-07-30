@@ -1,13 +1,24 @@
+import io
 import time
 import hashlib
-import random
 import threading
 from queue import PriorityQueue
+
+try:
+    import pygame
+    pygame.mixer.init()
+    PYGAME_AVAILABLE = True
+except Exception as e:
+    PYGAME_AVAILABLE = False
+    print("Pygame mixer not available, falling back to browser audio:", e)
 
 
 class AudioManager:
     """
     Thread-safe Singleton Audio & Voice Queue Manager.
+    Dual-mode playback:
+    1. Plays directly through system speakers via Pygame for zero-latency local audio.
+    2. Exposes audio_bytes for Streamlit browser audio playback.
     Background worker thread manages speech timing, 3.5s cooldowns, priority queueing,
     and prevents duplicate audio replay or mid-sentence interruptions.
     """
@@ -84,6 +95,16 @@ class AudioManager:
                         priority, ts, item = self.queue.get()
                         if (now - ts) <= 6.0:  # Valid within 6 seconds
                             duration = self.estimate_duration(item["text"])
+
+                            # Native Pygame Speaker Playback (Local Execution)
+                            if PYGAME_AVAILABLE:
+                                try:
+                                    fp = io.BytesIO(item["audio_bytes"])
+                                    pygame.mixer.music.load(fp)
+                                    pygame.mixer.music.play()
+                                except Exception as pe:
+                                    print("Pygame audio playback error:", pe)
+
                             expire_time = now + duration + self.cooldown_seconds
 
                             self.current_audio = {

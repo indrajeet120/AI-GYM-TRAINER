@@ -158,13 +158,13 @@ def main():
         if context.video_processor:
             sync_metrics_update(context)
 
-        # Check and render persistent background audio player without forcing page reruns
+        # Render persistent background audio player for browser fallback
         audio_item = audio_mgr.get_current_audio_to_play()
         if audio_item:
             audio_bytes, audio_id, _ = audio_item
             render_persistent_audio_player(audio_bytes, audio_id)
 
-        # Smooth 1.0s UI refresh cycle during active workout to pull metrics & audio cues
+        # Smooth 1.0s UI refresh cycle during active workout
         st_autorefresh(interval=1000, key="gym_counter_refresh")
 
     inject_webrtc_styles()
