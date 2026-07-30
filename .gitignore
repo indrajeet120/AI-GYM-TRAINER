@@ -22,3 +22,6 @@ Main App/data.db
 # Logs
 *.log
 
+__pycache__/
+*.pyc
+.env
