@@ -28,7 +28,7 @@ class VideoProcessorClass(VideoProcessorBase):
         self._exercise_type = "Squats"
         self._experience_level = "Intermediate"
         self.frame_count = 0
-        self.process_every = 3  
+        self.process_every = 2  # Process every 2nd frame for 30+ FPS responsiveness
         self.last_processed_frame = None
         self.prev_landmarks = None
         self.last_voice_eval_time = 0.0
@@ -39,10 +39,10 @@ class VideoProcessorClass(VideoProcessorBase):
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(
             static_image_mode=False,
-            model_complexity=1,
+            model_complexity=0,  # Ultra-fast lightweight model for 30+ FPS performance
             smooth_landmarks=True,
-            min_detection_confidence=0.6,
-            min_tracking_confidence=0.7
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
         )
         self._detectors = {
             "Squats": SquatDetector(),
@@ -112,9 +112,9 @@ class VideoProcessorClass(VideoProcessorBase):
                     return av.VideoFrame.from_ndarray(self.last_processed_frame, format="bgr24")
                 return av.VideoFrame.from_ndarray(image, format="bgr24")
 
-            image = cv2.convertScaleAbs(image, alpha=1.2, beta=20)
-            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            results = self.pose.process(rgb)
+            # Resize frame for ultra-fast MediaPipe inference (480x360)
+            small_rgb = cv2.cvtColor(cv2.resize(image, (480, 360)), cv2.COLOR_BGR2RGB)
+            results = self.pose.process(small_rgb)
             now = time.time()
 
             if results.pose_landmarks:
@@ -144,7 +144,7 @@ class VideoProcessorClass(VideoProcessorBase):
                         event_type = "rep_completed"
                         self.last_rep_count = reps
 
-                    # Continuous evaluation every ~1.8 seconds or immediately on rep completion
+                    # Asynchronous evaluation: triggers TTS in background thread without blocking recv()
                     if event_type == "rep_completed" or (now - self.last_voice_eval_time > 1.8):
                         self.voice_pipeline.evaluate_and_speak(event_type, ex_type, metrics, exp_level)
                         self.last_voice_eval_time = now
@@ -159,7 +159,7 @@ class VideoProcessorClass(VideoProcessorBase):
                     self.voice_pipeline.evaluate_and_speak("no_pose_detected", self.get_exercise(), old_m, self.get_experience_level())
                     self.last_voice_eval_time = now
             
-            self.last_processed_frame = image.copy()
+            self.last_processed_frame = image
             return av.VideoFrame.from_ndarray(image, format="bgr24")
         except Exception as e:
             print("VIDEO PROCESSOR ERROR:", e)
