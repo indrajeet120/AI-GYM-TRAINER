@@ -9,6 +9,7 @@ from services.auth.login_wall import render_login_wall
 from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS, EXPERIENCE_LEVELS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
+from services.ui.audio_player import render_persistent_audio_player
 from services.persistence.exercise_repository import init_db
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
@@ -42,8 +43,8 @@ def main():
 
     initial_session_defaults()
 
-    if "audio_to_play" not in st.session_state:
-        st.session_state.audio_to_play = None
+    if "current_audio_tuple" not in st.session_state:
+        st.session_state.current_audio_tuple = None
 
     if "last_spoken_rep" not in st.session_state:
         st.session_state.last_spoken_rep = 0
@@ -147,7 +148,7 @@ def main():
                 st.metric("Balance Status", st.session_state.balance_status)
 
     st.title("🏋️ AI Real-time GYM Coach")
-    st.markdown("##### AI-Powered Form Analysis & Proactive Voice Guidance")
+    st.markdown("##### AI-Powered Form Analysis & Uninterrupted Proactive Voice Coaching")
 
     if not workout_started:
         st.markdown(
@@ -199,19 +200,20 @@ def main():
                         )
 
                         if res:
-                            audio, text = res if isinstance(res, tuple) else (res, None)
-                            if audio:
-                                st.session_state.audio_to_play = audio
+                            audio, text, msg_id = res
+                            if audio and msg_id:
+                                st.session_state.current_audio_tuple = (audio, msg_id)
                             if text:
                                 st.session_state.coach_feedback_text = text
 
                         st.session_state.last_spoken_rep = processor_reps
 
-        if st.session_state.audio_to_play:
-            st.audio(st.session_state.audio_to_play, format="audio/mp3", autoplay=True)
-            st.session_state.audio_to_play = None
+        # Render Persistent Background HTML5 Audio Player (Zero Interruption across Streamlit Reruns)
+        if st.session_state.current_audio_tuple:
+            audio_bytes, audio_id = st.session_state.current_audio_tuple
+            render_persistent_audio_player(audio_bytes, audio_id)
 
-        st_autorefresh(interval=2000, key="gym_counter_refresh")
+        st_autorefresh(interval=3000, key="gym_counter_refresh")
 
     inject_webrtc_styles()
 

@@ -68,12 +68,11 @@ def sync_metrics_update(context):
                 experience_level=exp_level
             )
             if res:
-                audio, text = res if isinstance(res, tuple) else (res, "Great set completed!")
-                if audio:
-                    st.session_state.audio_to_play = audio
+                audio, text, msg_id = res
+                if audio and msg_id:
+                    st.session_state.current_audio_tuple = (audio, msg_id)
                 if text:
                     st.session_state.coach_feedback_text = text
-                st.rerun()
 
         st.session_state.set_cycle_started_at = now_ts
         st.session_state.last_saved_sets_completed = sets_completed
@@ -90,12 +89,11 @@ def sync_metrics_update(context):
                 experience_level=exp_level
             )
             if res:
-                audio, text = res if isinstance(res, tuple) else (res, "Workout completed!")
-                if audio:
-                    st.session_state.audio_to_play = audio
+                audio, text, msg_id = res
+                if audio and msg_id:
+                    st.session_state.current_audio_tuple = (audio, msg_id)
                 if text:
                     st.session_state.coach_feedback_text = text
-                st.rerun()
 
     # 3. NO POSE DETECTED EVENT
     pose_detected = latest_metrics.get("pose_detected", True)
@@ -109,10 +107,9 @@ def sync_metrics_update(context):
                 experience_level=exp_level
             )
             if res:
-                audio, text = res if isinstance(res, tuple) else (res, "Please step inside the camera frame.")
-                if audio:
-                    st.session_state.audio_to_play = audio
+                audio, text, msg_id = res
+                if audio and msg_id:
+                    st.session_state.current_audio_tuple = (audio, msg_id)
                 if text:
                     st.session_state.coach_feedback_text = text
                 st.session_state.last_pose_alert_time = time.time()
-                st.rerun()
