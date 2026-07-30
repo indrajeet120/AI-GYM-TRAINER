@@ -50,17 +50,17 @@ def main():
         st.subheader("Workout Configuration")
 
         if not workout_started:
+            # Widget key initialization fixed: value parameter omitted to prevent Session State API warning
             plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
-            plan_level = st.selectbox("Fitness Level", options=EXPERIENCE_LEVELS, index=1, key="plan_level")
-            plan_sets = st.number_input("Sets", min_value=1, max_value=50, value=3, key="plan_sets", step=1)
-            plan_reps = st.number_input("Reps per Set", min_value=1, max_value=50, value=10, key="plan_reps", step=1)
+            plan_level = st.selectbox("Fitness Level", options=EXPERIENCE_LEVELS, key="experience_level")
+            plan_sets = st.number_input("Sets", min_value=1, max_value=50, key="plan_sets", step=1)
+            plan_reps = st.number_input("Reps per Set", min_value=1, max_value=50, key="plan_reps", step=1)
 
             st.markdown("")
             start_session_button = st.button("Start Workout", width="stretch", key="start_session_button")
 
             if start_session_button:
                 st.session_state.exercise_type = plan_exercise
-                st.session_state.experience_level = plan_level
                 st.session_state.target_sets = int(plan_sets)
                 st.session_state.reps_per_set = int(plan_reps)
                 st.session_state.reps = 0

@@ -1,17 +1,17 @@
 import base64
-import streamlit.components.v1 as components
+import streamlit as st
 
 
 def render_persistent_audio_player(audio_bytes: bytes, audio_id: str):
     """
     Renders a persistent HTML5 background audio player attached to the browser's top window context.
-    Prevents Streamlit reruns or st_autorefresh from stopping audio mid-sentence.
+    Prevents Streamlit reruns from stopping audio mid-sentence and uses non-deprecated st.html API.
     """
     if not audio_bytes or not audio_id:
         return
 
     b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-    js_code = f"""
+    html_code = f"""
     <script>
         (function() {{
             try {{
@@ -34,4 +34,7 @@ def render_persistent_audio_player(audio_bytes: bytes, audio_id: str):
         }})();
     </script>
     """
-    components.html(js_code, height=0, width=0)
+    if hasattr(st, "html"):
+        st.html(html_code)
+    else:
+        st.components.v1.html(html_code, height=0, width=0)
