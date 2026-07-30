@@ -1,397 +1,198 @@
 # 🏋️ AI Real-Time GYM TRAINER
 
 <p align="center">
-  <b>An AI-powered personal fitness assistant using Computer Vision and Pose Estimation</b>
+  <b>An AI-powered personal fitness assistant using Computer Vision, MediaPipe, and Real-Time Voice Coaching</b>
 </p>
 
 <p align="center">
-  Track workouts • Count repetitions • Analyze posture • Get real-time AI coaching
+  Track Workouts • Count Repetitions • Form Analysis • Real-Time Voice Coaching • Cloud & Local Ready
 </p>
 
 ---
 
 ## 🚀 Project Overview
 
-**AI Real-Time GYM TRAINER** is an intelligent fitness assistant that uses **Computer Vision, MediaPipe Pose Estimation, and Artificial Intelligence** to analyze human body movements through a webcam.
+**AI Real-Time GYM TRAINER** is an intelligent, full-stack AI fitness application built with **Python, Streamlit, MediaPipe Pose, OpenCV, gTTS, and SQLite**.
 
-The system detects body landmarks, calculates joint angles, identifies exercise movements, counts repetitions automatically, and provides real-time feedback to improve workout form.
+The system tracks human body landmarks via live webcam feeds, calculates joint angles in real time, evaluates movement form, counts completed repetitions, and provides **proactive, human-like voice coaching** without interrupting video streaming or forcing page reruns.
 
-It works like a virtual AI fitness coach that helps users perform exercises correctly without requiring a physical trainer.
-
----
-
-## ✨ Features
-
-### 🎥 Real-Time Pose Detection
-- Real-time human pose tracking using MediaPipe.
-- Detects body landmarks from webcam input.
-- Works with live video streaming.
-
-### 💪 Exercise Recognition & Rep Counting
-
-Supported exercises:
-
-| Exercise | Status |
-|---|---|
-| 🏋️ Squats | ✅ |
-| 🤸 Push-ups | ✅ |
-| 💪 Biceps Curl | ✅ |
-| 🔥 Shoulder Press | ✅ |
-| 🦵 Lunges | ✅ |
-
-The AI counts repetitions automatically by analyzing body movement patterns.
+It supports deployment on both **local machines** (using Pygame speaker audio) and **Streamlit Cloud** (using native browser HTML5 audio).
 
 ---
 
-## 🧠 AI Form Analysis
+## ✨ Key Features
 
-The trainer analyzes workout posture and provides corrections:
+### 🎥 30+ FPS WebRTC Video Stream
+- High-speed real-time pose tracking with MediaPipe Pose (`model_complexity=1`).
+- 480x360 downscaled inference for low-latency CPU processing.
+- Smooth 15–30 FPS webcam feed through `streamlit-webrtc`.
 
-✅ Squat depth checking  
-✅ Back posture monitoring  
-✅ Elbow angle analysis  
-✅ Body alignment detection  
-✅ Range of motion tracking  
+### 💪 Multi-Exercise Form & Rep Tracking
+Automatically counts reps and evaluates posture for 5 core exercises:
 
+| Exercise | Tracked Metrics | Form Checks |
+|---|---|---|
+| 🏋️ **Squats** | Knee Angle, Back Angle | Depth (Too High / Full), Torso Collapse, Leaning |
+| 🤸 **Push-ups** | Elbow Angle, Hip Height | Body Alignment, Sagging / Piked Hips, Range of Motion |
+| 💪 **Biceps Curl** | Elbow Angle, Shoulder | Shoulder Stability, Arm Swing Detection |
+| 🔥 **Shoulder Press** | Elbow Angle, Extension | Overhead Lockout, Excessive Back Arch |
+| 🦵 **Lunges** | Front Knee, Torso Angle | Knee Alignment, Balance & Stability |
 
-Example feedback:
+### 🎙️ Asynchronous Dual-Mode AI Voice Coach
+- **Thread-Safe `AudioManager` Singleton**: Asynchronous background worker thread with `PriorityQueue`.
+- **Dual-Mode Audio Engine**:
+  - *Local Mode*: Direct system speaker output via `pygame.mixer` with zero latency.
+  - *Cloud Mode*: Native Streamlit `st.audio(..., autoplay=True)` browser playback.
+- **Human-Like Coaching**:
+  - Experience-based phrase pools (**Beginner**, **Intermediate**, **Advanced**).
+  - Priority-based cues: Posture Errors > Range of Motion / Speed > Rep Praise > Inactivity Warnings.
+  - 3.5s cooldowns to prevent overlapping speech or repetitive phrases.
+
+### 📊 Workout History & Persistent Storage
+- Built-in **SQLite database** (`gym_trainer.db`).
+- Tracks user sessions, exercise logs, completed sets, reps, and workout duration.
+- Interactive historical summary table in the Streamlit UI.
+
+---
+
+## 🏗️ System Architecture
 
 ```
-✔ Good Rep!
-
-⚠ Keep your back straight
-
-⚠ Go deeper
-
-⚠ Maintain proper posture
+                 Webcam Stream (streamlit-webrtc)
+                                |
+                                ↓
+                    OpenCV Frame Preprocessing
+                                |
+                                ↓
+                MediaPipe Pose Detection (480x360)
+                                |
+                                ↓
+                      Landmark Smoothing
+                                |
+                                ↓
+               Joint Angle & Form Metric Engine
+                                |
+          ---------------------------------------------
+          |                                           |
+          ↓                                           ↓
+  Rep & Form Counter                         Voice Pipeline Engine
+          |                                           |
+          ↓                                           ↓
+   SQLite Database                           AudioManager Singleton
+          |                                  (Async Queue Worker)
+          |                                           |
+          ---------------------------------------------
+                                |
+                                ↓
+                  Streamlit Live UI + Voice Output
+                  (Local Speakers / Browser HTML5)
 ```
 
 ---
 
-# 🔊 AI Voice Coach
+## 🛠️ Tech Stack
 
-The application provides audio feedback using Text-To-Speech technology.
-
-Voice guidance includes:
-
-- Rep completion feedback
-- Form correction suggestions
-- Workout instructions
-- Motivation messages
-
-
-Technology:
-
-- gTTS
-- Python Audio Processing
-- Voice Pipeline System
+- **Core & Logic**: Python 3.11, NumPy, Pandas, SQLite
+- **Computer Vision & Pose**: OpenCV 4.10.0, MediaPipe 0.10.14
+- **Web App & Video Stream**: Streamlit 1.54.0, Streamlit-WebRTC 0.64.5
+- **Audio & Speech**: gTTS (Google Text-to-Speech), Pygame Mixer 2.6.1
 
 ---
 
-# 🏗️ System Architecture
-
-
-```
-                Webcam Input
-                     |
-                     ↓
-             OpenCV Processing
-                     |
-                     ↓
-          MediaPipe Pose Detection
-                     |
-                     ↓
-          Body Landmark Extraction
-                     |
-                     ↓
-            Angle Calculation
-                     |
-                     ↓
-          Exercise Detection Engine
-                     |
-        -------------------------
-        |                       |
-        ↓                       ↓
- Rep Counter             Form Analysis
-        |                       |
-        -------------------------
-                     |
-                     ↓
-            AI Voice Feedback
-```
-
-
----
-
-# 🛠️ Tech Stack
-
-
-## Programming Language
-
-- Python
-
-
-## Computer Vision
-
-- OpenCV
-- MediaPipe
-
-
-## AI / ML
-
-- Pose Estimation
-- Human Body Landmark Detection
-- Movement Analysis
-
-
-## Web Application
-
-- Streamlit
-- Streamlit WebRTC
-
-
-## Audio System
-
-- gTTS
-- pygame
-
-
-## Data Processing
-
-- NumPy
-- Pandas
-
-
----
-
-# 📂 Project Structure
-
+## 📂 Project Structure
 
 ```
 AI-GYM-TRAINER
+├── main.py                          # Main Streamlit Application Entrypoint
+├── requirements.txt                 # Python Dependencies
+├── packages.txt                     # Debian Linux System Dependencies (for Streamlit Cloud)
+├── .python-version                  # Python Runtime Specification (3.11)
+├── README.md                        # Documentation
 │
-├── main.py
-├── requirements.txt
-├── README.md
+├── detectors/                       # Exercise Pose Detectors
+│   ├── squat.py                     # Squat Detector
+│   ├── pushup.py                    # Push-up Detector
+│   ├── biceps_curl.py               # Biceps Curl Detector
+│   ├── shoulder_press.py            # Shoulder Press Detector
+│   └── lunges.py                    # Lunges Detector
 │
-├── core
-│   └── base_exercise.py
+├── services/                        # Application Services & Architecture
+│   ├── auth/                        # User Authentication Wall
+│   ├── coaching/                    # AI Voice & Audio Management
+│   │   ├── audio_manager.py         # Thread-Safe Singleton Audio Manager
+│   │   ├── voice_pipeline.py        # Phrase Selection & Async Cue Dispatch
+│   │   └── tts.py                   # Thread-Safe gTTS Speech Synthesizer
+│   ├── config/                      # Workout Configurations & Phrase Pools
+│   ├── persistence/                 # SQLite Database Repository
+│   ├── state/                       # Session State Defaults
+│   ├── tracking/                    # Real-time Metrics Synchronization
+│   ├── ui/                          # Custom CSS & Audio Player Renderers
+│   └── vision/                      # WebRTC Video Processor
+│       └── exercise_video_processor.py
 │
-├── detectors
-│   ├── squat.py
-│   ├── pushup.py
-│   ├── biceps_curl.py
-│   ├── shoulder_press.py
-│   └── lunges.py
-│
-├── services
-│   │
-│   ├── coaching
-│   │   ├── voice_pipeline.py
-│   │   └── tts.py
-│   │
-│   └── config
-│       └── workout_config.py
-│
-├── models
-│   └── pose_landmarker_full.task
-│
-└── utils
-    └── helpers.py
-
+└── static/                          # Custom CSS & Font Assets
 ```
 
 ---
 
-# ⚙️ Installation & Setup
+## ⚙️ Installation & Local Setup
 
-
-## 1. Clone Repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/indrajeet120/AI-GYM-TRAINER.git
-```
-
-Navigate into project:
-
-```bash
 cd AI-GYM-TRAINER
 ```
 
-
----
-
-## 2. Create Virtual Environment
-
+### 2. Create & Activate Virtual Environment
 
 ```bash
+# Create environment
 python -m venv .venv
-```
 
-
-Activate environment:
-
-
-### Windows
-
-```bash
+# Windows
 .venv\Scripts\activate
-```
 
-
-### Linux / Mac
-
-```bash
+# Linux / Mac
 source .venv/bin/activate
 ```
 
-
----
-
-## 3. Install Dependencies
-
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-
----
-
-# ▶️ Run Application
-
-
-Start Streamlit application:
-
+### 4. Run Locally
 
 ```bash
 streamlit run main.py
 ```
 
-
-Open browser:
-
-
-```
-http://localhost:8501
-```
-
+Access the app in your browser at: `http://localhost:8501`
 
 ---
 
-# 📸 Working Process
+## ☁️ Deployment on Streamlit Cloud
 
+The repository is fully configured for zero-error deployment on **Streamlit Cloud**:
 
-### Step 1
-User opens webcam.
-
-
-### Step 2
-AI detects body landmarks.
-
-
-### Step 3
-System calculates joint angles.
-
-
-### Step 4
-Exercise movement is identified.
-
-
-### Step 5
-Repetitions are counted.
-
-
-### Step 6
-AI provides voice guidance.
-
+1. Fork/Push this repository to GitHub.
+2. Connect your GitHub repository to [share.streamlit.io](https://share.streamlit.io/).
+3. Set Main File Path to `main.py`.
+4. Streamlit Cloud will automatically install system dependencies from `packages.txt` (`libgl1`, `libglib2.0-0t64`, `libsm6`, `libxext6`, `libxrender1`) and run Python 3.11.
 
 ---
 
-# 📐 Pose Angle Calculation
+## 👨‍💻 Developer & Author
 
-
-The system uses joint angles for movement detection.
-
-
-Example:
-
-
-```
-Squat:
-
-Standing Position
-Knee Angle > 160°
-
-        ↓
-
-Squat Down
-Knee Angle < 100°
-
-        ↓
-
-Rep Completed
-```
-
+**Indrajeet Yadav**  
+*B.Tech Electronics Engineering*  
+- **GitHub**: [github.com/indrajeet120](https://github.com/indrajeet120)  
+- **LinkedIn**: [linkedin.com/in/indrajeet-yadav](https://linkedin.com/in/indrajeet-yadav)
 
 ---
 
-# 🎯 Key Highlights
+## 📜 License
 
-
-⭐ Real-time AI workout monitoring  
-⭐ Computer vision based exercise tracking  
-⭐ Automatic repetition counting  
-⭐ Smart posture correction  
-⭐ Voice-based fitness guidance  
-⭐ Modular detector architecture  
-
-
----
-
-# 🚧 Future Improvements
-
-
-- [ ] User authentication system
-- [ ] Workout history dashboard
-- [ ] Calories burned estimation
-- [ ] AI fitness chatbot
-- [ ] Mobile application
-- [ ] Cloud deployment
-- [ ] Personalized workout plans
-
-
----
-
-# 👨‍💻 Developer
-
-
-## Indrajeet Yadav
-
-B.Tech Electronics Engineering
-
-
-GitHub:
-```
-https://github.com/indrajeet120
-```
-
-
-LinkedIn:
-```
-https://linkedin.com/in/indrajeet-yadav
-```
-
-
----
-
-# ⭐ Support
-
-If you like this project, consider giving it a ⭐ on GitHub.
-
-
----
-
-# 📜 License
-
-This project is developed for educational and research purposes.
+This project is open-source and developed for educational, fitness, and research purposes.
