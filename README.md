@@ -189,7 +189,7 @@ The repository is fully configured for zero-error deployment on **Streamlit Clou
 **Indrajeet Yadav**  
 *B.Tech Electronics Engineering*  
 - **GitHub**: [github.com/indrajeet120](https://github.com/indrajeet120)  
-- **LinkedIn**: [linkedin.com/in/indrajeet-yadav](https://linkedin.com/in/indrajeet-yadav)
+- **LinkedIn**: [linkedin.com/in/indrajeet-yadav](https://www.linkedin.com/in/indrajeet-yadav12)
 
 ---
 
