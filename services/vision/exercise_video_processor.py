@@ -37,9 +37,11 @@ class VideoProcessorClass(VideoProcessorBase):
         self.voice_pipeline = VoicePipeline(tts=TextToSpeech())
 
         self.mp_pose = mp.solutions.pose
+        # model_complexity=1 is pre-bundled in the PyPI wheel and avoids runtime file downloads
+        # that cause PermissionError on Streamlit Cloud's read-only virtual environment.
         self.pose = self.mp_pose.Pose(
             static_image_mode=False,
-            model_complexity=0,  # Ultra-fast lightweight model for 30+ FPS performance
+            model_complexity=1,
             smooth_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
@@ -112,7 +114,7 @@ class VideoProcessorClass(VideoProcessorBase):
                     return av.VideoFrame.from_ndarray(self.last_processed_frame, format="bgr24")
                 return av.VideoFrame.from_ndarray(image, format="bgr24")
 
-            # Resize frame for ultra-fast MediaPipe inference (480x360)
+            # Resize frame to (480x360) for ultra-fast MediaPipe inference without affecting accuracy
             small_rgb = cv2.cvtColor(cv2.resize(image, (480, 360)), cv2.COLOR_BGR2RGB)
             results = self.pose.process(small_rgb)
             now = time.time()
