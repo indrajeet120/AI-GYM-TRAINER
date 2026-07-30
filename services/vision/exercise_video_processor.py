@@ -1,5 +1,8 @@
 
 import os
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+os.environ["OPENCV_VIDEOWRITE_GPU_API"] = "0"
+
 import cv2
 import av
 import numpy as np

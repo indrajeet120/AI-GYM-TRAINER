@@ -21,3 +21,6 @@ Main App/data.db
 
 # Logs
 *.log
+
+# Python version
+.python-version
