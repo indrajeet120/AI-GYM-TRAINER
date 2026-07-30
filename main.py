@@ -15,6 +15,7 @@ from services.persistence.exercise_repository import init_db, get_users_exercise
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
 from services.tracking.metrics import sync_metrics_update
+from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -162,6 +163,9 @@ def main():
         if audio_item:
             audio_bytes, audio_id, _ = audio_item
             render_persistent_audio_player(audio_bytes, audio_id)
+
+        # Smooth 1.0s UI refresh cycle during active workout to pull metrics & audio cues
+        st_autorefresh(interval=1000, key="gym_counter_refresh")
 
     inject_webrtc_styles()
 
